@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ブレマイ ピンズ管理・検索</title>
+<style>
+  :root {
+    --bg: #fdf8f7;
+    --card: #ffffff;
+    --primary: #e88d9c;
+    --primary-light: #fcebef;
+    --accent: #9c88d9;
+    --text: #4a3b3b;
+    --text-sub: #8a7575;
+    --border: #f0e1e1;
+    --gold: #f5b82e;
+    --silver: #7fa8d6;
+    --gray: #b0a4a4;
+  }
+
+  * {
+    box-sizing: border-box;
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", -apple-system, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--bg);
+    color: var(--text);
+    padding-bottom: 80px;
+  }
+
+  header {
+    background: #fff;
+    padding: 14px 18px;
+    box-shadow: 0 2px 10px rgba(74, 59, 59, 0.06);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  header h1 {
+    font-size: 1.1rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .header-btns {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+
+  .btn:active { transform: scale(0.96); }
+  .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 3px 8px rgba(232, 141, 156, 0.35); }
+  .btn-sub { background: var(--primary-light); color: var(--text); }
+  .btn-danger { background: #ff7b7b; color: #fff; }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 15px;
+  }
+
+  /* 検索・フィルターエリア */
+  .filter-box {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(74, 59, 59, 0.04);
+    margin-bottom: 15px;
+    border: 1px solid var(--border);
+  }
+
+  .search-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .search-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    font-size: 0.95rem;
+    outline: none;
+  }
+
+  .search-input:focus {
+    border-color: var(--primary);
+  }
+
+  .filter-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  @media (min-width: 600px) {
+    .filter-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+    font-size: 0.85rem;
+    outline: none;
+  }
+
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+    color: var(--text-sub);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ピンズ一覧カード */
+  .pin-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  @media (min-width: 640px) {
+    .pin-list {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .pin-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 12px 14px;
+    box-shadow: 0 3px 10px rgba(74, 59, 59, 0.04);
+    border: 1.5px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    position: relative;
+  }
+
+  .pin-card.eval-◎ { border-left: 5px solid var(--gold); background: linear-gradient(to right, #fffdf5, #ffffff); }
+  .pin-card.eval-△ { border-left: 5px solid var(--silver); }
+  .pin-card.eval-× { border-left: 5px solid #e0d5d5; }
+
+  .pin-thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: var(--primary-light);
+    object-fit: cover;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--text-sub);
+    text-align: center;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .pin-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .pin-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pin-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+
+  .badge-dept {
+    font-size: 0.7rem;
+    padding: 2px 7px;
+    border-radius: 8px;
+    background: #f0ebf8;
+    color: #6a569e;
+    font-weight: bold;
+  }
+
+  .pin-target {
+    font-weight: bold;
+    font-size: 0.95rem;
+  }
+
+  .badge-eval {
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 1px 7px;
+    border-radius: 8px;
+  }
+  .badge-eval.◎ { background: #fff0c2; color: #b87b00; }
+  .badge-eval.△ { background: #e3f0ff; color: #366da8; }
+  .badge-eval.× { background: #f2ecec; color: #8c7b7b; }
+
+  .badge-lv {
+    font-size: 0.7rem;
+    background: var(--primary);
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-weight: bold;
+  }
+
+  .pin-effect {
+    font-size: 0.88rem;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .pin-val {
+    font-weight: bold;
+    color: #d65a6e;
+    margin-left: 4px;
+  }
+
+  .pin-illust {
+    font-size: 0.8rem;
+    color: var(--text-sub);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pin-memo {
+    display: inline-block;
+    margin-left: 6px;
+    color: #d9822b;
+    font-weight: bold;
+  }
+
+  .btn-edit {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    color: var(--text);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* モーダル */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(50, 40, 40, 0.45);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+  }
+
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal {
+    background: #fff;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  }
+
+  .modal h2 {
+    margin: 0 0 15px;
+    font-size: 1.1rem;
+    border-bottom: 2px solid var(--primary-light);
+    padding-bottom: 8px;
+  }
+
+  .form-group {
+    margin-bottom: 12px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+
+  .form-group input[type="text"],
+  .form-group input[type="number"],
+  .form-group select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.95rem;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .img-preview-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .img-preview {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: var(--primary-light);
+    object-fit: cover;
+    border: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📌 ブレマイピンズ帳</h1>
+  <div class="header-btns">
+    <button class="btn btn-sub" onclick="openBackupModal()">データ管理</button>
+    <button class="btn btn-primary" onclick="openEditModal()">＋ 新規登録</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="filter-box">
+    <div class="search-row">
+      <input type="text" id="search-keyword" class="search-input" placeholder="イラスト名・対象・効果・備考で検索..." oninput="renderList()">
+      <button class="btn btn-sub" onclick="resetFilters()">クリア</button>
+    </div>
+    <div class="filter-grid">
+      <select id="filter-target" onchange="renderList()">
+        <option value="">対象：すべて</option>
+      </select>
+      <select id="filter-dept" onchange="renderList()">
+        <option value="">部署：すべて</option>
+        <option value="本部">本部</option>
+        <option value="交際部">交際部</option>
+        <option value="管理部">管理部</option>
+        <option value="強行部">強行部</option>
+        <option value="交渉部">交渉部</option>
+        <option value="特務部">特務部</option>
+        <option value="すべて">すべて（共通）</option>
+      </select>
+      <select id="filter-effect" onchange="renderList()">
+        <option value="">効果：すべて</option>
+        <option value="オーラ">オーラ</option>
+        <option value="ビジュアル">ビジュアル</option>
+        <option value="カリスマ">カリスマ</option>
+        <option value="全てのステータス">全てのステータス</option>
+        <option value="オートスキル">オートスキル</option>
+        <option value="コンビネーションスキル">コンビネーションスキル</option>
+        <option value="SPスキルコスト">SPスキルコスト</option>
+      </select>
+      <select id="filter-eval" onchange="renderList()">
+        <option value="">評価：すべて</option>
+        <option value="◎">◎ のみ</option>
+        <option value="△">△ のみ</option>
+        <option value="×">× のみ</option>
+        <option value="NONE">未設定</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span>表示件数：<strong id="count-display">0</strong> 件</span>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span>並び替え：</span>
+      <select id="sort-order" style="width:auto; padding:5px 8px;" onchange="renderList()">
+        <option value="default">キャラ順（標準）</option>
+        <option value="val-desc">数値が高い順</option>
+        <option value="newest">新しい登録順</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="pin-list" class="pin-list"></div>
+</div>
+
+<!-- 登録・編集モーダル -->
+<div id="edit-modal" class="modal-overlay" onclick="closeModalOnBg(event, 'edit-modal')">
+  <div class="modal">
+    <h2 id="modal-title">ピンズ新規登録</h2>
+    <input type="hidden" id="edit-id">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>対象（キャラ / レア）</label>
+        <select id="input-target" onchange="onTargetChange()"></select>
+      </div>
+      <div class="form-group">
+        <label>部署（自動入力）</label>
+        <input type="text" id="input-dept" readonly style="background:#f9f4f4;">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>イラスト名</label>
+      <input type="text" id="input-illust" placeholder="例：月浮かぶ空ドリンク、明星（顔）">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>効果</label>
+        <select id="input-effect" onchange="onEffectOrValChange()">
+          <option value="オーラ">オーラ</option>
+          <option value="ビジュアル">ビジュアル</option>
+          <option value="カリスマ">カリスマ</option>
+          <option value="全てのステータス">全てのステータス</option>
+          <option value="オートスキル">オートスキル</option>
+          <option value="コンビネーションスキル">コンビネーションスキル</option>
+          <option value="SPスキルコスト">SPスキルコスト</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label id="label-val">数値（%）</label>
+        <input type="number" step="0.1" id="input-val" placeholder="例：6.0" oninput="onEffectOrValChange()">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>評価（マスタ基準で自動判定）</label>
+        <select id="input-eval">
+          <option value="">（なし）</option>
+          <option value="◎">◎</option>
+          <option value="△">△</option>
+          <option value="×">×</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>レベル</label>
+        <input type="text" id="input-level" placeholder="例：5（空欄OK）">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>備考</label>
+      <input type="text" id="input-memo" placeholder="例：★、お気に入りなど">
+    </div>
+
+    <div class="form-group">
+      <label>ピンズ画像（任意）</label>
+      <div class="img-preview-box">
+        <img id="input-img-preview" class="img-preview" src="" alt="">
+        <div style="flex:1;">
+          <input type="file" id="input-img-file" accept="image/*" onchange="handleImageUpload(this.files[0])" style="font-size:0.8rem;">
+          <button type="button" class="btn btn-sub" style="margin-top:5px; padding:4px 8px; font-size:0.75rem;" onclick="clearImage()">画像を消す</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" id="btn-delete" class="btn btn-danger" onclick="deletePin()" style="display:none;">削除</button>
+      <div style="display:flex; gap:8px; margin-left:auto;">
+        <button type="button" class="btn btn-sub" onclick="closeModal('edit-modal')">キャンセル</button>
+        <button type="button" class="btn btn-primary" onclick="savePin()">保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- バックアップ・データ管理モーダル -->
+<div id="backup-modal" class="modal-overlay" onclick="closeModalOnBg(event, 'backup-modal')">
+  <div class="modal">
+    <h2>データ管理・バックアップ</h2>
+    <p style="font-size:0.85rem; color:var(--text-sub); line-height:1.5;">
+      登録・編集したデータはこの端末のブラウザに自動保存されています。別端末へ移す場合やバックアップを残したい場合は書き出しを使ってね。
+    </p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+      <button class="btn btn-primary" onclick="exportJSON()">📥 バックアップを書き出す (JSON)</button>
+      <button class="btn btn-sub" onclick="document.getElementById('import-json').click()">📤 バックアップを読み込む (JSON)</button>
+      <input type="file" id="import-json" accept=".json" style="display:none" onchange="importJSON(this.files[0])">
+      <hr style="border:none; border-top:1px solid var(--border); width:100%; margin:8px 0;">
+      <button class="btn btn-danger" onclick="resetToInitial()">⚠️ 最初のスプレッドシート状態に戻す</button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-sub" style="margin-left:auto;" onclick="closeModal('backup-modal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // マスタデータ
+  const TARGET_MASTER = [
+    { sort: 1, target: "皇坂 逢", dept: "本部" },
+    { sort: 2, target: "城瀬 由鶴", dept: "本部" },
+    { sort: 3, target: "須王 芦佳", dept: "本部" },
+    { sort: 4, target: "綾戸 恋", dept: "交際部" },
+    { sort: 5, target: "宇京 真央", dept: "交際部" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部" },
+    { sort: 7, target: "環野 揺", dept: "交際部" },
+    { sort: 8, target: "槻本 大河", dept: "管理部" },
+    { sort: 9, target: "壱川 春日", dept: "管理部" },
+    { sort: 10, target: "隠岐谷 誓", dept: "管理部" },
+    { sort: 11, target: "節見 静", dept: "強行部" },
+    { sort: 12, target: "御門 尊", dept: "強行部" },
+    { sort: 13, target: "新開 戦", dept: "強行部" },
+    { sort: 14, target: "相沢 篠信", dept: "強行部" },
+    { sort: 15, target: "在間 樹帆", dept: "交渉部" },
+    { sort: 16, target: "祠堂 恭耶", dept: "交渉部" },
+    { sort: 17, target: "立科 吏来", dept: "交渉部" },
+    { sort: 18, target: "恩田 灯世", dept: "特務部" },
+    { sort: 19, target: "新名 有", dept: "特務部" },
+    { sort: 20, target: "神家", dept: "特務部" },
+    { sort: 21, target: "麻波 麗", dept: "特務部" },
+    { sort: 22, target: "R", dept: "すべて" },
+    { sort: 23, target: "SR", dept: "すべて" },
+    { sort: 24, target: "SSR", dept: "すべて" },
+    { sort: 25, target: "すべて", dept: "すべて" }
+  ];
+
+  const EFFECT_MASTER = {
+    "オーラ": { good: 14.0, mid: 7.1, bad: 6.0, unit: "%" },
+    "ビジュアル": { good: 9.6, mid: 6.8, bad: 6.0, unit: "%" },
+    "カリスマ": { good: 16.0, mid: 7.0, bad: 6.0, unit: "%" },
+    "全てのステータス": { good: 4.8, mid: 3.5, bad: 3.0, unit: "%" },
+    "オートスキル": { good: 2.2, mid: 0.7, bad: 0.2, unit: "秒" },
+    "コンビネーションスキル": { good: 11.0, mid: 4.4, bad: 3.0, unit: "%" },
+    "SPスキルコスト": { good: 8.0, mid: 1.9, bad: 0.2, unit: "%" }
+  };
+
+  // スプレッドシート初期データ（全129件）
+  const INITIAL_PINS = [
+    { sort: 1, target: "皇坂 逢", dept: "本部", effect: "ビジュアル", val: 6.0, unit: "%", eval: "×", level: "", illust: "月のお酒", memo: "" },
+    { sort: 1, target: "皇坂 逢", dept: "本部", effect: "コンビネーションスキル", val: 3.0, unit: "%", eval: "×", level: "", illust: "静（顔）", memo: "" },
+    { sort: 2, target: "城瀬 由鶴", dept: "本部", effect: "全てのステータス", val: 3.0, unit: "%", eval: "×", level: "", illust: "マイメロ", memo: "" },
+    { sort: 2, target: "城瀬 由鶴", dept: "本部", effect: "SPスキルコスト", val: 1.2, unit: "%", eval: "", level: "", illust: "しましまCDドリンク", memo: "" },
+    { sort: 2, target: "城瀬 由鶴", dept: "本部", effect: "ビジュアル", val: 8.4, unit: "%", eval: "", level: "", illust: "揺（XR）", memo: "" },
+    { sort: 2, target: "城瀬 由鶴", dept: "本部", effect: "カリスマ", val: 16.0, unit: "%", eval: "◎", level: "5", illust: "しおり", memo: "" },
+    { sort: 3, target: "須王 芦佳", dept: "本部", effect: "オートスキル", val: 0.2, unit: "秒", eval: "×", level: "", illust: "トロピカルサングラスドリンク", memo: "" },
+    { sort: 3, target: "須王 芦佳", dept: "本部", effect: "ビジュアル", val: 6.0, unit: "%", eval: "×", level: "", illust: "銃声ドリンク", memo: "" },
+    { sort: 3, target: "須王 芦佳", dept: "本部", effect: "全てのステータス", val: 4.2, unit: "%", eval: "", level: "", illust: "シュークリーム", memo: "" },
+    { sort: 3, target: "須王 芦佳", dept: "本部", effect: "全てのステータス", val: 4.8, unit: "%", eval: "◎", level: "", illust: "走る明星", memo: "" },
+    { sort: 3, target: "須王 芦佳", dept: "本部", effect: "全てのステータス", val: 4.2, unit: "%", eval: "", level: "", illust: "レアアイス", memo: "" },
+    { sort: 4, target: "綾戸 恋", dept: "交際部", effect: "オートスキル", val: 0.2, unit: "秒", eval: "×", level: "", illust: "ブレマイ蝶", memo: "" },
+    { sort: 4, target: "綾戸 恋", dept: "交際部", effect: "コンビネーションスキル", val: 7.0, unit: "%", eval: "", level: "", illust: "フルーツサンド", memo: "" },
+    { sort: 4, target: "綾戸 恋", dept: "交際部", effect: "全てのステータス", val: 3.6, unit: "%", eval: "", level: "", illust: "★ドリンク", memo: "" },
+    { sort: 4, target: "綾戸 恋", dept: "交際部", effect: "カリスマ", val: 6.0, unit: "%", eval: "×", level: "", illust: "相沢（ペア）", memo: "" },
+    { sort: 4, target: "綾戸 恋", dept: "交際部", effect: "ビジュアル", val: 6.0, unit: "%", eval: "×", level: "", illust: "静香（ペア）", memo: "" },
+    { sort: 4, target: "綾戸 恋", dept: "交際部", effect: "SPスキルコスト", val: 2.4, unit: "%", eval: "", level: "", illust: "鏡餅", memo: "" },
+    { sort: 4, target: "綾戸 恋", dept: "交際部", effect: "カリスマ", val: 6.0, unit: "%", eval: "×", level: "", illust: "HBD（紅）", memo: "" },
+    { sort: 5, target: "宇京 真央", dept: "交際部", effect: "SPスキルコスト", val: 1.2, unit: "%", eval: "", level: "", illust: "♡ローズ（銅）", memo: "" },
+    { sort: 5, target: "宇京 真央", dept: "交際部", effect: "SPスキルコスト", val: 1.2, unit: "%", eval: "", level: "", illust: "明星ミニキャラ（普通）", memo: "" },
+    { sort: 5, target: "宇京 真央", dept: "交際部", effect: "コンビネーションスキル", val: 3.0, unit: "%", eval: "×", level: "", illust: "HBD（紫）", memo: "" },
+    { sort: 5, target: "宇京 真央", dept: "交際部", effect: "カリスマ", val: 6.0, unit: "%", eval: "×", level: "", illust: "HBD（金）", memo: "" },
+    { sort: 5, target: "宇京 真央", dept: "交際部", effect: "コンビネーションスキル", val: 7.0, unit: "%", eval: "", level: "", illust: "明星（XR）", memo: "" },
+    { sort: 5, target: "宇京 真央", dept: "交際部", effect: "オーラ", val: 14.0, unit: "%", eval: "◎", level: "5", illust: "恋（ペア）", memo: "" },
+    { sort: 5, target: "宇京 真央", dept: "交際部", effect: "コンビネーションスキル", val: 7.0, unit: "%", eval: "", level: "", illust: "城瀬（ペア）", memo: "" },
+    { sort: 5, target: "宇京 真央", dept: "交際部", effect: "オーラ", val: 8.4, unit: "%", eval: "", level: "", illust: "大河（ペア）", memo: "" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "コンビネーションスキル", val: 3.0, unit: "%", eval: "×", level: "", illust: "団子", memo: "" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "コンビネーションスキル", val: 3.0, unit: "%", eval: "×", level: "", illust: "♡チョコ", memo: "" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "コンビネーションスキル", val: 11.0, unit: "%", eval: "◎", level: "5", illust: "月浮かぶ空ドリンク", memo: "★" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "カリスマ", val: 6.0, unit: "%", eval: "×", level: "", illust: "プディング", memo: "" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "オーラ", val: 6.0, unit: "%", eval: "×", level: "", illust: "♪", memo: "" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "オートスキル", val: 0.2, unit: "秒", eval: "×", level: "", illust: "DEM", memo: "" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "オーラ", val: 6.0, unit: "%", eval: "×", level: "", illust: "御門（顔）", memo: "" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "オートスキル", val: 1.2, unit: "秒", eval: "", level: "", illust: "明星顔", memo: "" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "ビジュアル", val: 6.0, unit: "%", eval: "×", level: "", illust: "BMCスプレー", memo: "" },
+    { sort: 6, target: "樋宮 明星", dept: "交際部", effect: "カリスマ", val: 6.0
