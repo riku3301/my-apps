@@ -212,6 +212,7 @@
   .pin-card.eval-◎ { border-left: 5px solid var(--gold); background: linear-gradient(to right, #fffdf5, #ffffff); }
   .pin-card.eval-△ { border-left: 5px solid var(--silver); }
   .pin-card.eval-× { border-left: 5px solid #e0d5d5; }
+  .pin-card.eval-強化済 { border-left: 5px solid var(--primary); background: linear-gradient(to right, #fff8fa, #ffffff); }
 
   .pin-thumb {
     width: 50px;
@@ -537,9 +538,10 @@
       </select>
       <select id="filter-eval" onchange="renderList()">
         <option value="">評価：すべて</option>
-        <option value="◎">◎（全体最高効率）</option>
-        <option value="△">△（中間）</option>
-        <option value="×">×（全体最低効率）</option>
+        <option value="◎">◎（Lv.1最高効率）</option>
+        <option value="△">△（Lv.1中間）</option>
+        <option value="×">×（Lv.1最低効率）</option>
+        <option value="強化済">強化済（Lv.2以上）</option>
       </select>
     </div>
 
@@ -553,7 +555,7 @@
   </div>
 
   <div class="status-bar">
-    <span>表示件数：<strong id="count-display">0</strong> 件（全体基準：最高＝◎ / 最低＝×）</span>
+    <span>表示件数：<strong id="count-display">0</strong> 件（Lv.1基準：最高＝◎ / 最低＝×）</span>
     <div style="display:flex; align-items:center; gap:6px;">
       <span>並び替え：</span>
       <select id="sort-order" style="width:auto; padding:5px 8px;" onchange="renderList()">
@@ -610,13 +612,13 @@
 
     <div class="form-row">
       <div class="form-group">
-        <label>評価（全体基準で自動判定）</label>
+        <label>評価（Lv.1基準で自動判定）</label>
         <input type="text" id="input-eval-preview" readonly style="background:#f9f4f4; font-weight:bold;">
-        <div class="hint-text">保存時に全ピンズの最高/最低と自動比較されます</div>
+        <div class="hint-text">未強化(Lv.1/空欄)同士で自動比較されます</div>
       </div>
       <div class="form-group">
         <label>レベル</label>
-        <input type="text" id="input-level" placeholder="例：5（空欄OK）">
+        <input type="text" id="input-level" placeholder="例：5（未強化は空欄OK）" oninput="onEffectOrValChange()">
       </div>
     </div>
 
@@ -921,9 +923,17 @@
     return targetMaster.find(m => m.target === targetName);
   }
 
+  // 未強化（レベルが空欄または1）かどうかを判定
+  function isUnenhancedLevel(levelVal) {
+    const s = String(levelVal ?? "").trim();
+    return s === "" || s === "1";
+  }
+
+  // 未強化（Lv.1）のピンズだけを対象に効果ごとの最大・最小を算出
   function getEffectMinMaxMap(list) {
     const map = {};
     list.forEach(p => {
+      if (!isUnenhancedLevel(p.level)) return;
       const num = Number(p.val);
       if (isNaN(num)) return;
       if (!map[p.effect]) {
@@ -937,6 +947,7 @@
   }
 
   function calcDynamicEval(pin, minMaxMap) {
+    if (!isUnenhancedLevel(pin.level)) return "強化済";
     const mm = minMaxMap[pin.effect];
     const num = Number(pin.val);
     if (!mm || isNaN(num)) return "";
@@ -1058,7 +1069,7 @@
         ? `<img src="${p.charImg}" alt="">`
         : `<span>${p.target.slice(0, 1)}</span>`;
 
-      const evalBadge = p.eval ? `<span class="badge-eval ${p.eval}">${p.eval}</span>` : "";
+      const evalBadge = (p.eval && p.eval !== "強化済") ? `<span class="badge-eval ${p.eval}">${p.eval}</span>` : "";
       const lvBadge = p.level ? `<span class="badge-lv">Lv.${p.level}</span>` : "";
       const memoHtml = p.memo ? `<span class="pin-memo">${p.memo}</span>` : "";
       const valText = p.val !== "" && p.val !== null ? `${Number(p.val).toFixed(1)}${p.unit || "%"}` : "";
@@ -1143,8 +1154,14 @@
     const unit = EFFECT_UNITS[eff] || "%";
     document.getElementById("label-val").textContent = `数値（${unit}）`;
 
-    const raw = document.getElementById("input-val").value;
+    const lv = document.getElementById("input-level").value;
     const previewEl = document.getElementById("input-eval-preview");
+    if (!isUnenhancedLevel(lv)) {
+      previewEl.value = "強化済（Lv.1比較から除外）";
+      return;
+    }
+
+    const raw = document.getElementById("input-val").value;
     if (raw === "" || isNaN(parseFloat(raw))) {
       previewEl.value = "（数値入力後に判定）";
       return;
@@ -1154,10 +1171,10 @@
     const editId = Number(document.getElementById("edit-id").value);
     const simulated = pinsData
       .filter(p => p.id !== editId)
-      .concat([{ id: editId || -1, effect: eff, val }]);
+      .concat([{ id: editId || -1, effect: eff, val, level: lv }]);
     const mmMap = getEffectMinMaxMap(simulated);
-    const ev = calcDynamicEval({ effect: eff, val }, mmMap);
-    previewEl.value = ev ? `${ev}（全体基準）` : "—";
+    const ev = calcDynamicEval({ effect: eff, val, level: lv }, mmMap);
+    previewEl.value = ev ? `${ev}（Lv.1基準）` : "—";
   }
 
   function resizeImageToDataUrl(file, maxSize, callback) {
